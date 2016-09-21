@@ -37,6 +37,11 @@
  */
 package it.unipd.math.pcd.actors;
 
+ //import java.util.concurrent.atomic.AtomicBoolean;
+import it.unipd.math.pcd.actors.exceptions.NoSuchActorException;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+
 /**
  * Defines common properties of all actors.
  *
@@ -46,16 +51,21 @@ package it.unipd.math.pcd.actors;
  */
 public abstract class AbsActor<T extends Message> implements Actor<T> {
 
+
+
+    /**
+	 * booleano thread-safe per permettere di controllare se ci sono richieste di stop per l'attore
+	 */
+	//private AtomicBoolean isAskedToStop = new AtomicBoolean(false);
+    //NO - RISOLTO
+
+    //uso execute(new Runnable) e override di run(), ho i metodi shutdown e isShutodown
+    private final ExecutorService mb = Executors.newSingleThreadExecutor();
+
     /**
      * Self-reference of the actor
      */
     protected ActorRef<T> self;
-
-    /**
-     * Sender of the current message
-     */
-    protected ActorRef<T> sender;
-
     /**
      * Sets the self-referece.
      *
@@ -65,5 +75,48 @@ public abstract class AbsActor<T extends Message> implements Actor<T> {
     protected final Actor<T> setSelf(ActorRef<T> self) {
         this.self = self;
         return this;
+    }
+
+
+    /**
+     * Sender of the current message
+     */
+    protected ActorRef<T> sender;
+
+    //setter per sender
+    public void setSender(ActorRef<T> s) {
+        this.sender = s;
+    }
+
+    /**
+     *
+     * @param msg messaggio
+     * @param sender chi mi ha inviato il messaggio
+     * @throws NoSuchActorException se sono "spento"
+     */
+    protected void addToMailBox(final T msg, final ActorRef<T> sender) throws NoSuchActorException {
+        if(!mb.isShutdown()) {
+            mb.execute(new Runnable(){
+
+                @Override
+                public void run() {
+                    setSender(sender);
+                    receive(msg);
+
+                }
+            });
+        } else
+            throw new NoSuchActorException();
+    }
+
+
+    /**
+     * Chiede all'attore di fermarsi, se è gia fermo solleva ex
+     */
+    public  void pleaseStop() throws NoSuchActorException {
+        if (mb.isShutdown())
+            throw new NoSuchActorException();
+        else
+            mb.shutdown();
     }
 }

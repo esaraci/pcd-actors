@@ -37,9 +37,12 @@
  */
 package it.unipd.math.pcd.actors;
 
-import it.unipd.math.pcd.actors.exceptions.NoSuchActorException;
 
+import it.unipd.math.pcd.actors.exceptions.NoSuchActorException;
 import java.util.Map;
+import java.util.Set;
+import java.util.concurrent.ConcurrentHashMap;
+
 
 /**
  * A map-based implementation of the actor system.
@@ -80,4 +83,45 @@ public abstract class AbsActorSystem implements ActorSystem {
     }
 
     protected abstract ActorRef createActorReference(ActorMode mode);
+    
+    
+    
+    // metodi, variabili, costruttori aggiunti //
+    
+    
+    //uso concurrenthashmap per thread-safety
+    public AbsActorSystem() {
+    	actors = new ConcurrentHashMap<>();
+    }
+    
+    
+    //per iterare sulla map in stop()
+    protected Set<ActorRef<?>> getActorsRefs() {
+    	return actors.keySet();
+    }
+    
+    
+    //ritorna l'attore dato un ActorRef
+    protected Actor<?> getActorFromRef(ActorRef<?> ar) {
+    	if (actors.containsKey(ar)) //esiste
+    		return actors.get(ar);
+    	else
+    		throw new NoSuchActorException(); //riferimento non trovato
+    }
+
+    public void stop (ActorRef<?> ar) {
+    	if (actors.containsKey(ar)) {
+            ((AbsActor)getActorFromRef(ar)).pleaseStop();
+            actors.remove(ar);
+    	}
+    	else
+    	    throw new NoSuchActorException();
+    }
+
+    public void stop() {
+    	for (ActorRef actor : getActorsRefs())
+			stop(actor);
+    }
+
+    
 }
